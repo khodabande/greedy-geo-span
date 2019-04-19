@@ -1,0 +1,162 @@
+<html>
+<head>
+<title>Greedy Geometric Spanner</title>
+<style>
+canvas {
+	width: 500px;
+	height: 500px;
+	border: 1px solid black;
+}
+</style>
+<script src="floydWarshall.js"></script>
+</head>
+<body>
+<canvas id="fig" width="500" height="500"></canvas>
+<div id="actions">
+<input id="radio-add" type="radio" name="action" value="add" onChange="param_action='a'"> <label for="radio-add">Add</label>
+<input id="radio-rem" type="radio" name="action" value="rem" onChange="param_action='r'"> <label for="radio-rem">Remove</label>
+</div>
+<div id="params">
+<label for="input-t">t: </label><input id="input-t" type="text" name="t" value="1.5" onChange="param_t=this.value;"/>
+<label for="input-wait">wait: </label><input id="input-wait" type="text" name="wait" value="200" onChange="param_wait=this.value;"/>
+</div>
+<div id="buttons">
+<button id="btn-run" name="run" onClick="run();">Run</button>
+<button id="btn-run-wait" name="run" onClick="run(param_wait);">Slow Run</button>
+</div>
+<script type="text/javascript">
+fig.addEventListener('click', handle_click, false);
+param_t = 1.5;
+param_wait = 200;
+action = 'a';
+points = []
+edges = []
+function run(wait) {
+	run_ggs(wait);
+	redraw();
+}
+function run_ggs(wait) {
+	if (!wait)
+		wait = 0;
+	var t = param_t;
+	var dists = [];
+	var flat_dists = [];
+	var ggs_edges = {};
+	for (var i=0; i<points.length; i++) {
+		dists.push([]);
+		for (var j=0; j<points.length; j++) {
+			var xd = points[i][0]-points[j][0];
+			var yd = points[i][1]-points[j][1];
+			xd *= xd;
+			yd *= yd;
+			var d = Math.sqrt(xd+yd);
+			dists[i].push(d);
+			flat_dists.push([d, i, j]);
+		}
+	}
+	console.log('dists');
+	console.log(dists);
+	function compare(a,b) {
+		if (a[0] < b[0]) return -1;
+		if (a[0] > b[0]) return 1;
+		return 0;
+	}
+	flat_dists.sort(compare);
+	if (wait) {
+		var i = 0;
+		function loop_func() {
+			if (i >= flat_dists.length)
+				return;
+			run_ggs_loop(i, t, points, edges, ggs_edges, flat_dists);
+			i++;
+			setTimeout(loop_func, wait);
+		}
+		loop_func();
+	} else {
+		for (var i=0; i<flat_dists.length; i++) {
+			run_ggs_loop(i, t, points, edges, ggs_edges, flat_dists);
+		}
+	}
+}
+function run_ggs_loop(i, t, points, edges, ggs_edges, flat_dists) {
+	var graph = {};
+	graph.getAllVertices = function() {
+		return points;
+	}
+	graph.findEdge = function(s, e) {
+		return ggs_edges[[s,e]];
+	}
+	var sp = floydWarshall(graph);
+	console.log('warshall');
+	console.log(sp);
+	if (sp[flat_dists[i][1]][flat_dists[i][2]] > t * flat_dists[i][0]) {
+		ggs_edges[[flat_dists[i][1],flat_dists[i][2]]] = flat_dists[i][0];
+		ggs_edges[[flat_dists[i][2],flat_dists[i][1]]] = flat_dists[i][0];
+		console.log('ggs test');
+		console.log(ggs_edges[[0,1]]);
+		//console.log('ggs edges');
+		console.log(flat_dists[i]);
+		edges.push([flat_dists[i][1],flat_dists[i][2]]);
+		//console.log('add edge ' + flat_dists[i][1] + ', ' + flat_dists[i][2]);
+		//console.log(edges);
+		console.log(edges.length);
+		redraw();
+	}
+}
+function redraw() {
+	var w = fig.width;
+	var h = fig.height;
+	var ctx = fig.getContext("2d");
+	ctx.fillStyle = "#fff";
+	ctx.fillRect(0, 0, w, h);
+	for (var i=0; i<edges.length; i++) {
+		ctx.beginPath();
+		ctx.moveTo(points[edges[i][0]][0], points[edges[i][0]][1]);
+		ctx.lineTo(points[edges[i][1]][0], points[edges[i][1]][1]);
+		ctx.strokeStyle = "#000";
+		ctx.stroke();
+	}
+	for (var i=0; i<points.length; i++) {
+		ctx.beginPath();
+		ctx.arc(points[i][0], points[i][1], 3, 0, 2 * Math.PI, false);
+		ctx.fillStyle = "#f00";
+		ctx.fill();
+	}
+}
+function handle_click(e) {
+	var x;
+	var y;
+	if (e.pageX || e.pageY) { 
+	  x = e.pageX;
+	  y = e.pageY;
+	}
+	else { 
+	  x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft; 
+	  y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop; 
+	} 
+	x -= fig.offsetLeft;
+	y -= fig.offsetTop;
+	switch (action) {
+		case 'a':
+			console.log('add');
+			points.push([x,y])
+			break;
+		case 'r':
+			console.log('remove');
+			var rem = -1;
+			for (var i=0; i<points.length; i++) {
+				if ((x-points[i][0])*(x-points[i][0]) + (y-points[i][1])*(y-points[i][1]) < 50) {
+					rem = i;
+					break;
+				}
+			}
+			if (rem > -1)
+				points.splice(rem, 1);
+			break;
+	}
+	redraw();
+	console.log(points);
+}
+</script>
+</body>
+</html>
