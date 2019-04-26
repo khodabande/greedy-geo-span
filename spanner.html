@@ -24,13 +24,34 @@ canvas {
 <button id="btn-run" name="run" onClick="run();">Run</button>
 <button id="btn-run-wait" name="run" onClick="run(param_wait);">Slow Run</button>
 </div>
+<div>
+<label for="input-num-rand-pts">#Random Pts: </label><input id="input-num-rand-pts" type="text" name="num-rand-pts" value="200" onChange="param_num_rand_pts=this.value;"/>
+<button id="btn-rand_pts" name="rand_pts" onClick="rand_points();">Random Pts</button>
+</div>
+<div>
+<label for="input-n-gon">n-gon: </label><input id="input-n-gon" type="text" name="num-n-gon" value="10" onChange="param_n_gon=this.value;"/>
+<button id="btn-n-gon" name="n_gon" onClick="n_gon();">N-Gon</button>
+</div>
+<div>
+<label for="input-n-sqrt">n-sqrt: </label><input id="input-n-sqrt" type="text" name="num-n-sqrt" value="10" onChange="param_n_sqrt=this.value;"/>
+<button id="btn-n-sqrt" name="n_sqrt" onClick="n_sqrt();">N-sqrt</button>
+</div>
+<div>
+<label for="input-n-grid">n-grid: </label><input id="input-n-grid" type="text" name="num-n-grid" value="10" onChange="param_n_grid=this.value;"/>
+<button id="btn-n-grid" name="n_grid" onClick="n_grid();">N-grid</button>
+</div>
 <script type="text/javascript">
 fig.addEventListener('click', handle_click, false);
 param_t = 1.5;
 param_wait = 200;
+param_num_rand_pts = 200;
+param_n_gon = 10;
+param_n_sqrt = 10;
+param_n_grid = 10;
 action = 'a';
 points = []
 edges = []
+fade_edges = []
 function run(wait) {
 	run_ggs(wait);
 	redraw();
@@ -87,19 +108,21 @@ function run_ggs_loop(i, t, points, edges, ggs_edges, flat_dists) {
 		return ggs_edges[[s,e]];
 	}
 	var sp = floydWarshall(graph);
-	console.log('warshall');
-	console.log(sp);
+	//console.log('warshall');
+	//console.log(sp);
 	if (sp[flat_dists[i][1]][flat_dists[i][2]] > t * flat_dists[i][0]) {
 		ggs_edges[[flat_dists[i][1],flat_dists[i][2]]] = flat_dists[i][0];
 		ggs_edges[[flat_dists[i][2],flat_dists[i][1]]] = flat_dists[i][0];
 		console.log('ggs test');
-		console.log(ggs_edges[[0,1]]);
-		//console.log('ggs edges');
-		console.log(flat_dists[i]);
-		edges.push([flat_dists[i][1],flat_dists[i][2]]);
+		//console.log(ggs_edges[[0,1]]);
+		//console.log(flat_dists[i]);
+		edges.push([flat_dists[i][1],flat_dists[i][2], Math.floor(sp[flat_dists[i][1]][flat_dists[i][2]]) + "/" + Math.floor(flat_dists[i][0])]);
 		//console.log('add edge ' + flat_dists[i][1] + ', ' + flat_dists[i][2]);
 		//console.log(edges);
 		console.log(edges.length);
+		redraw();
+	} else {
+		fade_edges.push([flat_dists[i][1], flat_dists[i][2], Math.floor(sp[flat_dists[i][1]][flat_dists[i][2]]) + "/" + Math.floor(flat_dists[i][0])]);
 		redraw();
 	}
 }
@@ -109,10 +132,19 @@ function redraw() {
 	var ctx = fig.getContext("2d");
 	ctx.fillStyle = "#fff";
 	ctx.fillRect(0, 0, w, h);
+	for (var i=0; i<fade_edges.length; i++) {
+		ctx.beginPath();
+		ctx.moveTo(points[fade_edges[i][0]][0], points[fade_edges[i][0]][1]);
+		ctx.lineTo(points[fade_edges[i][1]][0], points[fade_edges[i][1]][1]);
+		ctx.setLineDash([5, 10])
+		ctx.strokeStyle = "#777";
+		ctx.stroke();
+	}
 	for (var i=0; i<edges.length; i++) {
 		ctx.beginPath();
 		ctx.moveTo(points[edges[i][0]][0], points[edges[i][0]][1]);
 		ctx.lineTo(points[edges[i][1]][0], points[edges[i][1]][1]);
+		ctx.setLineDash([])
 		ctx.strokeStyle = "#000";
 		ctx.stroke();
 	}
@@ -121,6 +153,12 @@ function redraw() {
 		ctx.arc(points[i][0], points[i][1], 3, 0, 2 * Math.PI, false);
 		ctx.fillStyle = "#f00";
 		ctx.fill();
+	}
+	for (var i=0; i<fade_edges.length; i++) {
+		ctx.font = "12px Calibri";
+		ctx.fillStyle = "#555";
+		console.log(fade_edges[i][2]);
+		ctx.fillText(fade_edges[i][2], (points[fade_edges[i][0]][0]+points[fade_edges[i][1]][0])/2, (points[fade_edges[i][0]][1]+points[fade_edges[i][1]][1])/2);
 	}
 }
 function handle_click(e) {
@@ -156,6 +194,53 @@ function handle_click(e) {
 	}
 	redraw();
 	console.log(points);
+}
+function rand_points() {
+	for (var i=0; i<param_num_rand_pts; i++) {
+		var x = Math.floor(Math.random()*fig.width);
+		var y = Math.floor(Math.random()*fig.height);
+		points.push([x,y]);
+	}
+	redraw();
+}
+function n_gon() {
+	var n = param_n_gon;
+	var w = fig.width;
+	var h = fig.height;
+	var r = Math.floor(Math.min(w,h)*0.4);
+	for (var i=0; i<n; i++) {
+		var x = Math.floor(w/2+r*Math.cos(i*2*Math.PI/n));
+		var y = Math.floor(h/2+r*Math.sin(i*2*Math.PI/n));
+		points.push([Math.floor(x), Math.floor(y)]);
+	}
+	redraw();
+}
+function n_sqrt() {
+	var n = param_n_sqrt;
+	var w = fig.width;
+	var h = fig.height;
+	var u = Math.floor(w/(n+2));
+	for (var i=0; i<n; i++) {
+		var x = (i+1)*u;
+		var y = h/2+u*Math.sqrt(i)*(i%2?(-1):1);
+		points.push([Math.floor(x), Math.floor(y)]);
+	}
+	redraw();
+}
+function n_grid() {
+	var n = param_n_grid;
+	var w = fig.width;
+	var h = fig.height;
+	var wd = w/(n+2);
+	var hd = h/(n+2);
+	for (var i=0; i<n; i++) {
+		for (var j=0; j<n; j++) {
+			var x = (i+1)*wd;
+			var y = (j+1)*hd;
+			points.push([Math.floor(x), Math.floor(y)]);
+		}
+	}
+	redraw();
 }
 </script>
 </body>
